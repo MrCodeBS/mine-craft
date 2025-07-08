@@ -18,13 +18,13 @@ class MinecraftGame {
     );
     this.renderer = new THREE.WebGLRenderer({
       canvas: document.getElementById("gameCanvas"),
-      antialias: true,
+      antialias: false, // Disabled for performance
+      powerPreference: "high-performance"
     });
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x87ceeb); // Sky blue
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Shadows completely disabled for maximum performance
 
     // Make sure canvas is visible and fullscreen
     const canvas = this.renderer.domElement;
@@ -138,6 +138,10 @@ class MinecraftGame {
 
     // Materials
     this.materials = this.createMaterials();
+    
+    // Shared geometry for all blocks - memory optimization
+    this.blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+    this.playerGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.8);
 
     // Setup
     this.setupLighting();
@@ -161,34 +165,26 @@ class MinecraftGame {
   }
 
   createMaterials() {
-    // Create simple colored materials for now
+    // Use basic materials for maximum performance
     return {
-      grass: new THREE.MeshLambertMaterial({ color: 0x4caf50 }),
-      dirt: new THREE.MeshLambertMaterial({ color: 0x8d6e63 }),
-      stone: new THREE.MeshLambertMaterial({ color: 0x9e9e9e }),
-      wood: new THREE.MeshLambertMaterial({ color: 0x6d4c41 }),
-      leaves: new THREE.MeshLambertMaterial({ color: 0x2e7d32 }),
-      player: new THREE.MeshLambertMaterial({ color: 0xff5722 }),
+      grass: new THREE.MeshBasicMaterial({ color: 0x4caf50 }),
+      dirt: new THREE.MeshBasicMaterial({ color: 0x8d6e63 }),
+      stone: new THREE.MeshBasicMaterial({ color: 0x9e9e9e }),
+      wood: new THREE.MeshBasicMaterial({ color: 0x6d4c41 }),
+      leaves: new THREE.MeshBasicMaterial({ color: 0x2e7d32 }),
+      player: new THREE.MeshBasicMaterial({ color: 0xff5722 }),
     };
   }
 
   setupLighting() {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    // Simplified lighting for better performance
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Brighter ambient
     this.scene.add(ambientLight);
 
-    // Directional light (sun)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Simple directional light without shadows
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight.position.set(50, 100, 50);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 500;
-    directionalLight.shadow.camera.left = -100;
-    directionalLight.shadow.camera.right = 100;
-    directionalLight.shadow.camera.top = 100;
-    directionalLight.shadow.camera.bottom = -100;
+    // Shadows disabled for performance
     this.scene.add(directionalLight);
   }
 
@@ -320,29 +316,28 @@ class MinecraftGame {
     );
     frustum.setFromProjectionMatrix(matrix);
 
-    // Create new block meshes with visibility culling
-    const viewRange = 15; // Reasonable view distance
+    // Create new block meshes with aggressive performance optimization
+    const viewRange = 12; // Reduced for better performance
     let meshCount = 0;
     let culledCount = 0;
 
+    // Pre-calculate player position for faster distance checks
+    const playerX = this.playerPosition.x;
+    const playerY = this.playerPosition.y;
+    const playerZ = this.playerPosition.z;
+
     Object.entries(this.blocks).forEach(([key, block]) => {
-      const dx = block.x - this.playerPosition.x;
-      const dz = block.z - this.playerPosition.z;
-      const dy = block.y - this.playerPosition.y;
-      const distance = Math.sqrt(dx * dx + dz * dz + dy * dy);
+      // Fast distance check without sqrt for initial culling
+      const dx = block.x - playerX;
+      const dz = block.z - playerZ;
+      const dy = block.y - playerY;
+      const distanceSquared = dx * dx + dz * dz + dy * dy;
 
-      // Skip blocks that are too far
-      if (distance > viewRange) return;
+      // Skip blocks that are too far (using squared distance)
+      if (distanceSquared > viewRange * viewRange) return;
 
-      // Create a bounding box for the block
-      const blockBox = new THREE.Box3(
-        new THREE.Vector3(block.x, block.y, block.z),
-        new THREE.Vector3(block.x + 1, block.y + 1, block.z + 1)
-      );
-
-      // Only render blocks that are visible to the camera (frustum culling)
-      if (frustum.intersectsBox(blockBox)) {
-        // Additional occlusion culling - skip blocks that are completely surrounded
+      // Only do expensive frustum check for nearby blocks
+      if (distanceSquared < 36) { // Within 6 blocks - always render
         if (!this.isBlockOccluded(block)) {
           this.createBlockMesh(block, key);
           meshCount++;
@@ -350,7 +345,22 @@ class MinecraftGame {
           culledCount++;
         }
       } else {
-        culledCount++;
+        // For distant blocks, do frustum culling
+        const blockBox = new THREE.Box3(
+          new THREE.Vector3(block.x, block.y, block.z),
+          new THREE.Vector3(block.x + 1, block.y + 1, block.z + 1)
+        );
+
+        if (frustum.intersectsBox(blockBox)) {
+          if (!this.isBlockOccluded(block)) {
+            this.createBlockMesh(block, key);
+            meshCount++;
+          } else {
+            culledCount++;
+          }
+        } else {
+          culledCount++;
+        }
       }
     });
 
@@ -371,13 +381,12 @@ class MinecraftGame {
   }
 
   createBlockMesh(block, key) {
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    // Use shared geometry for memory efficiency
     const material = this.materials[block.type] || this.materials.stone;
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(this.blockGeometry, material);
 
     mesh.position.set(block.x + 0.5, block.y + 0.5, block.z + 0.5);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    // Shadows disabled for performance
     mesh.userData = { blockKey: key, blockData: block };
 
     this.scene.add(mesh);
@@ -401,12 +410,12 @@ class MinecraftGame {
   createPlayerMesh(player) {
     if (player.id === this.playerId) return; // Don't render self
 
-    const geometry = new THREE.BoxGeometry(0.8, 1.8, 0.8);
+    // Use shared geometry for memory efficiency
     const material = this.materials.player;
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(this.playerGeometry, material);
 
     mesh.position.set(player.x, player.y + 0.9, player.z);
-    mesh.castShadow = true;
+    // Shadows disabled for performance
 
     this.scene.add(mesh);
     this.playerMeshes[player.id] = mesh;
@@ -632,16 +641,7 @@ class MinecraftGame {
   }
 
   update(deltaTime) {
-    // Debug movement
-    if (Object.values(this.controls).some((val) => val)) {
-      console.log(
-        "Controls active:",
-        this.controls,
-        "Pointer locked:",
-        this.isPointerLocked
-      );
-    }
-
+    // Remove debug movement logging for performance
     if (!this.isPointerLocked || this.chatVisible) return;
 
     // Slower, more realistic movement speeds
@@ -712,11 +712,11 @@ class MinecraftGame {
     this.camera.position.copy(this.playerPosition);
 
     // Smart frustum culling - only update when camera moves significantly
-    const cameraMoved = this.lastCameraPosition.distanceTo(this.camera.position) > 2;
-    const cameraRotated = Math.abs(this.euler.y - this.lastCameraRotation.y) > 0.1 || 
-                         Math.abs(this.euler.x - this.lastCameraRotation.x) > 0.1;
+    const cameraMoved = this.lastCameraPosition.distanceTo(this.camera.position) > 3; // Increased threshold
+    const cameraRotated = Math.abs(this.euler.y - this.lastCameraRotation.y) > 0.2 || 
+                         Math.abs(this.euler.x - this.lastCameraRotation.x) > 0.2; // Less sensitive
     
-    if ((cameraMoved || cameraRotated) && Date.now() - this.lastRenderUpdate > 100) {
+    if ((cameraMoved || cameraRotated) && Date.now() - this.lastRenderUpdate > 200) { // Reduced frequency
       this.createBlockMeshes(); // Re-cull blocks based on new camera view
       this.lastCameraPosition.copy(this.camera.position);
       this.lastCameraRotation.copy(this.euler);
@@ -754,19 +754,7 @@ class MinecraftGame {
   }
 
   render() {
-    // Debug first few renders
-    if (!this.renderCount) this.renderCount = 0;
-    this.renderCount++;
-
-    if (this.renderCount <= 3) {
-      console.log(
-        `Render #${this.renderCount} - Camera pos:`,
-        this.camera.position,
-        "Scene children:",
-        this.scene.children.length
-      );
-    }
-
+    // Minimal debugging for performance
     this.renderer.render(this.scene, this.camera);
   }
 
