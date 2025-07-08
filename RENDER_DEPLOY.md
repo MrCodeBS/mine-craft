@@ -68,7 +68,16 @@ git push origin main
 ## ⚡ Performance Optimizations:
 - **Faster world generation**: Only 3 block layers instead of 64
 - **Smaller chunks**: 1 chunk radius instead of 3 
-- **Reduced view range**: 10 blocks instead of 20
+- **Frustum culling**: Only renders blocks visible to camera
+- **Occlusion culling**: Skips blocks completely hidden behind others
+- **Smart updates**: Only re-culls when camera moves significantly
+- **Reduced view range**: 15 blocks optimized with visibility culling
 - **Instant loading**: No more waiting for massive world generation!
+
+## 🎮 Advanced Rendering Features:
+- **Dynamic visibility**: Blocks automatically hide when you look away
+- **Performance scaling**: More blocks visible = better culling performance
+- **Memory efficiency**: Only renders what you can actually see
+- **Smooth movement**: Camera-based culling updates smoothly
 
 Ready to deploy? Just follow the steps above! 🚀

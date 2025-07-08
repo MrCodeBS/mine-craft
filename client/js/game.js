@@ -127,6 +127,11 @@ class MinecraftGame {
     this.isPointerLocked = false;
     this.chatVisible = false;
 
+    // Frustum culling tracking
+    this.lastCameraPosition = new THREE.Vector3();
+    this.lastCameraRotation = new THREE.Euler();
+    this.lastRenderUpdate = 0;
+
     // Mouse look
     this.euler = new THREE.Euler(0, 0, 0, "YXZ");
     this.PI_2 = Math.PI / 2;
@@ -307,25 +312,54 @@ class MinecraftGame {
     });
     this.blockMeshes = {};
 
-    // Create new block meshes (VERY LIMITED for fast loading)
-    const viewRange = 10; // Much smaller for instant loading
+    // Create camera frustum for visibility culling
+    const frustum = new THREE.Frustum();
+    const matrix = new THREE.Matrix4().multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    );
+    frustum.setFromProjectionMatrix(matrix);
+
+    // Create new block meshes with visibility culling
+    const viewRange = 15; // Reasonable view distance
     let meshCount = 0;
+    let culledCount = 0;
 
     Object.entries(this.blocks).forEach(([key, block]) => {
       const dx = block.x - this.playerPosition.x;
       const dz = block.z - this.playerPosition.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
+      const dy = block.y - this.playerPosition.y;
+      const distance = Math.sqrt(dx * dx + dz * dz + dy * dy);
 
-      if (distance <= viewRange) {
-        this.createBlockMesh(block, key);
-        meshCount++;
+      // Skip blocks that are too far
+      if (distance > viewRange) return;
+
+      // Create a bounding box for the block
+      const blockBox = new THREE.Box3(
+        new THREE.Vector3(block.x, block.y, block.z),
+        new THREE.Vector3(block.x + 1, block.y + 1, block.z + 1)
+      );
+
+      // Only render blocks that are visible to the camera (frustum culling)
+      if (frustum.intersectsBox(blockBox)) {
+        // Additional occlusion culling - skip blocks that are completely surrounded
+        if (!this.isBlockOccluded(block)) {
+          this.createBlockMesh(block, key);
+          meshCount++;
+        } else {
+          culledCount++;
+        }
+      } else {
+        culledCount++;
       }
     });
 
     console.log(
-      "Created",
+      "Rendered",
       meshCount,
-      "block meshes out of",
+      "visible blocks, culled",
+      culledCount,
+      "hidden blocks out of",
       Object.keys(this.blocks).length,
       "total blocks"
     );
@@ -677,6 +711,18 @@ class MinecraftGame {
     // Update camera position
     this.camera.position.copy(this.playerPosition);
 
+    // Smart frustum culling - only update when camera moves significantly
+    const cameraMoved = this.lastCameraPosition.distanceTo(this.camera.position) > 2;
+    const cameraRotated = Math.abs(this.euler.y - this.lastCameraRotation.y) > 0.1 || 
+                         Math.abs(this.euler.x - this.lastCameraRotation.x) > 0.1;
+    
+    if ((cameraMoved || cameraRotated) && Date.now() - this.lastRenderUpdate > 100) {
+      this.createBlockMeshes(); // Re-cull blocks based on new camera view
+      this.lastCameraPosition.copy(this.camera.position);
+      this.lastCameraRotation.copy(this.euler);
+      this.lastRenderUpdate = Date.now();
+    }
+
     // Update server less frequently for better performance
     if (!this.lastServerUpdate || Date.now() - this.lastServerUpdate > 50) {
       // 20fps updates
@@ -823,6 +869,31 @@ class MinecraftGame {
     this.render();
 
     requestAnimationFrame(() => this.gameLoop());
+  }
+
+  // Check if a block is completely occluded by surrounding blocks
+  isBlockOccluded(block) {
+    // Check all 6 faces of the block
+    const neighbors = [
+      { x: block.x + 1, y: block.y, z: block.z }, // Right
+      { x: block.x - 1, y: block.y, z: block.z }, // Left
+      { x: block.x, y: block.y + 1, z: block.z }, // Top
+      { x: block.x, y: block.y - 1, z: block.z }, // Bottom
+      { x: block.x, y: block.y, z: block.z + 1 }, // Front
+      { x: block.x, y: block.y, z: block.z - 1 }, // Back
+    ];
+
+    // If all neighbors exist, block is completely occluded
+    let occludedFaces = 0;
+    neighbors.forEach((neighbor) => {
+      const neighborKey = `${neighbor.x},${neighbor.y},${neighbor.z}`;
+      if (this.blocks[neighborKey]) {
+        occludedFaces++;
+      }
+    });
+
+    // Block is occluded if all 6 faces are covered
+    return occludedFaces === 6;
   }
 }
 
