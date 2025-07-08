@@ -121,6 +121,9 @@ class MinecraftGame {
     // Camera/Player position
     this.playerPosition = new THREE.Vector3(0, 35, 0);
     this.velocity = new THREE.Vector3();
+    this.isOnGround = false;
+    this.gravity = -25; // Gravity force
+    this.jumpSpeed = 8; // Jump velocity
     this.isPointerLocked = false;
     this.chatVisible = false;
 
@@ -607,51 +610,85 @@ class MinecraftGame {
 
     if (!this.isPointerLocked || this.chatVisible) return;
 
-    // Movement with super fast speed
-    let baseSpeed = 100; // Base super fast movement
+    // Slower, more realistic movement speeds
+    let baseSpeed = 5; // Much slower walking speed
     if (this.controls.sprint) {
-      baseSpeed = 250; // Sprint speed - flying fast!
+      baseSpeed = 8; // Moderate sprint speed
     }
     const moveSpeed = baseSpeed * deltaTime;
+    
+    // Handle horizontal movement
     const direction = new THREE.Vector3();
-
     if (this.controls.forward) direction.z -= 1;
     if (this.controls.backward) direction.z += 1;
     if (this.controls.left) direction.x -= 1;
     if (this.controls.right) direction.x += 1;
-    if (this.controls.up) direction.y += 1;
-    if (this.controls.down) direction.y -= 1;
 
-    // Apply camera rotation to movement direction (except Y)
+    // Apply camera rotation to movement direction (horizontal only)
     const forward = new THREE.Vector3(0, 0, -1);
     const right = new THREE.Vector3(1, 0, 0);
-
+    
     forward.applyQuaternion(this.camera.quaternion);
     right.applyQuaternion(this.camera.quaternion);
+    
+    // Remove Y component for ground-based movement
+    forward.y = 0;
+    right.y = 0;
+    forward.normalize();
+    right.normalize();
 
     const moveDirection = new THREE.Vector3();
     moveDirection.addScaledVector(forward, -direction.z);
     moveDirection.addScaledVector(right, direction.x);
-    moveDirection.y = direction.y;
 
+    // Apply horizontal movement
     if (moveDirection.length() > 0) {
       moveDirection.normalize();
       this.playerPosition.addScaledVector(moveDirection, moveSpeed);
-      this.camera.position.copy(this.playerPosition);
+    }
 
-      // Update server less frequently for better performance
-      if (!this.lastServerUpdate || Date.now() - this.lastServerUpdate > 50) {
-        // 20fps updates
-        this.lastServerUpdate = Date.now();
-        if (this.playerId) {
-          this.socket.emit("playerMove", {
-            x: this.playerPosition.x,
-            y: this.playerPosition.y,
-            z: this.playerPosition.z,
-            rotX: this.euler.x,
-            rotY: this.euler.y,
-          });
-        }
+    // Handle jumping
+    if (this.controls.up && this.isOnGround) {
+      this.velocity.y = this.jumpSpeed;
+      this.isOnGround = false;
+    }
+
+    // Apply gravity
+    this.velocity.y += this.gravity * deltaTime;
+    
+    // Apply vertical movement
+    this.playerPosition.y += this.velocity.y * deltaTime;
+    
+    // Simple ground collision (at Y=30)
+    const groundLevel = 31; // Stand on top of blocks at Y=30
+    if (this.playerPosition.y <= groundLevel) {
+      this.playerPosition.y = groundLevel;
+      this.velocity.y = 0;
+      this.isOnGround = true;
+    } else {
+      this.isOnGround = false;
+    }
+
+    // Creative mode flying with Shift
+    if (this.controls.down && !this.isOnGround) {
+      this.velocity.y = -this.jumpSpeed; // Fly down
+    }
+
+    // Update camera position
+    this.camera.position.copy(this.playerPosition);
+
+    // Update server less frequently for better performance
+    if (!this.lastServerUpdate || Date.now() - this.lastServerUpdate > 50) {
+      // 20fps updates
+      this.lastServerUpdate = Date.now();
+      if (this.playerId) {
+        this.socket.emit("playerMove", {
+          x: this.playerPosition.x,
+          y: this.playerPosition.y,
+          z: this.playerPosition.z,
+          rotX: this.euler.x,
+          rotY: this.euler.y,
+        });
       }
     }
 
