@@ -19,7 +19,7 @@ class MinecraftGame {
     this.renderer = new THREE.WebGLRenderer({
       canvas: document.getElementById("gameCanvas"),
       antialias: false, // Disabled for performance
-      powerPreference: "high-performance"
+      powerPreference: "high-performance",
     });
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -138,7 +138,7 @@ class MinecraftGame {
 
     // Materials
     this.materials = this.createMaterials();
-    
+
     // Shared geometry for all blocks - memory optimization
     this.blockGeometry = new THREE.BoxGeometry(1, 1, 1);
     this.playerGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.8);
@@ -337,7 +337,8 @@ class MinecraftGame {
       if (distanceSquared > viewRange * viewRange) return;
 
       // Only do expensive frustum check for nearby blocks
-      if (distanceSquared < 36) { // Within 6 blocks - always render
+      if (distanceSquared < 36) {
+        // Within 6 blocks - always render
         if (!this.isBlockOccluded(block)) {
           this.createBlockMesh(block, key);
           meshCount++;
@@ -650,7 +651,7 @@ class MinecraftGame {
       baseSpeed = 8; // Moderate sprint speed
     }
     const moveSpeed = baseSpeed * deltaTime;
-    
+
     // Handle horizontal movement
     const direction = new THREE.Vector3();
     if (this.controls.forward) direction.z -= 1;
@@ -661,10 +662,10 @@ class MinecraftGame {
     // Apply camera rotation to movement direction (horizontal only)
     const forward = new THREE.Vector3(0, 0, -1);
     const right = new THREE.Vector3(1, 0, 0);
-    
+
     forward.applyQuaternion(this.camera.quaternion);
     right.applyQuaternion(this.camera.quaternion);
-    
+
     // Remove Y component for ground-based movement
     forward.y = 0;
     right.y = 0;
@@ -689,10 +690,10 @@ class MinecraftGame {
 
     // Apply gravity
     this.velocity.y += this.gravity * deltaTime;
-    
+
     // Apply vertical movement
     this.playerPosition.y += this.velocity.y * deltaTime;
-    
+
     // Simple ground collision (at Y=30)
     const groundLevel = 31; // Stand on top of blocks at Y=30
     if (this.playerPosition.y <= groundLevel) {
@@ -712,11 +713,17 @@ class MinecraftGame {
     this.camera.position.copy(this.playerPosition);
 
     // Smart frustum culling - only update when camera moves significantly
-    const cameraMoved = this.lastCameraPosition.distanceTo(this.camera.position) > 3; // Increased threshold
-    const cameraRotated = Math.abs(this.euler.y - this.lastCameraRotation.y) > 0.2 || 
-                         Math.abs(this.euler.x - this.lastCameraRotation.x) > 0.2; // Less sensitive
-    
-    if ((cameraMoved || cameraRotated) && Date.now() - this.lastRenderUpdate > 200) { // Reduced frequency
+    const cameraMoved =
+      this.lastCameraPosition.distanceTo(this.camera.position) > 3; // Increased threshold
+    const cameraRotated =
+      Math.abs(this.euler.y - this.lastCameraRotation.y) > 0.2 ||
+      Math.abs(this.euler.x - this.lastCameraRotation.x) > 0.2; // Less sensitive
+
+    if (
+      (cameraMoved || cameraRotated) &&
+      Date.now() - this.lastRenderUpdate > 200
+    ) {
+      // Reduced frequency
       this.createBlockMeshes(); // Re-cull blocks based on new camera view
       this.lastCameraPosition.copy(this.camera.position);
       this.lastCameraRotation.copy(this.euler);
