@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minecraft Multiplayer</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        font-family: "Courier New", monospace;
+        overflow: hidden;
+      }
+
+      #gameCanvas {
+        display: block;
+        cursor: pointer;
+      }
+
+      #ui {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        color: white;
+        pointer-events: none;
+      }
+
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        pointer-events: none;
+      }
+
+      #crosshair::before,
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        background: white;
+      }
+
+      #crosshair::before {
+        width: 2px;
+        height: 20px;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+      }
+
+      #crosshair::after {
+        width: 20px;
+        height: 2px;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+      }
+
+      #inventory {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        pointer-events: auto;
+      }
+
+      .inventory-slot {
+        width: 50px;
+        height: 50px;
+        border: 2px solid #fff;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 12px;
+        color: white;
+      }
+
+      .inventory-slot.selected {
+        border-color: #ff0;
+        background: rgba(255, 255, 0, 0.2);
+      }
+
+      #chat {
+        position: absolute;
+        bottom: 100px;
+        left: 20px;
+        width: 400px;
+        max-height: 200px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        overflow-y: auto;
+        font-size: 14px;
+        pointer-events: auto;
+      }
+
+      #chatInput {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 400px;
+        padding: 5px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid #fff;
+        color: white;
+        font-family: inherit;
+        display: none;
+        pointer-events: auto;
+      }
+
+      #info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        font-size: 14px;
+        border-radius: 5px;
+        border: 1px solid #fff;
+      }
+
+      #playerList {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        font-size: 14px;
+        min-width: 150px;
+      }
+
+      .chat-message {
+        margin-bottom: 5px;
+        word-wrap: break-word;
+      }
+
+      .chat-username {
+        color: #ff0;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui">
+      <div id="crosshair"></div>
+
+      <div id="info">
+        <div><strong>🎮 Minecraft Multiplayer</strong></div>
+        <div>Position: <span id="position">Loading...</span></div>
+        <div>Blocks: <span id="blockCount">0</span></div>
+        <div>Players: <span id="playerCount">0</span></div>
+        <div>FPS: <span id="fps">0</span></div>
+        <hr style="margin: 10px 0; border-color: #555" />
+        <div><strong>Controls:</strong></div>
+        <div>• WASD to walk, Mouse to look around</div>
+        <div>• Space to JUMP, Shift to fly down</div>
+        <div>• <strong>Ctrl to SPRINT (faster walking!)</strong></div>
+        <div>
+          • <strong>🌍 GRAVITY ENABLED - Jump to avoid falling!</strong>
+        </div>
+        <div>• Left click to destroy, Right click to place</div>
+        <div>• Press T to chat, Numbers 1-5 to select blocks</div>
+        <div>• <strong>Click canvas to start playing!</strong></div>
+      </div>
+
+      <div id="playerList">
+        <h3>Players Online:</h3>
+        <div id="players"></div>
+      </div>
+
+      <div id="inventory">
+        <div class="inventory-slot selected" data-block="grass">Grass</div>
+        <div class="inventory-slot" data-block="dirt">Dirt</div>
+        <div class="inventory-slot" data-block="stone">Stone</div>
+        <div class="inventory-slot" data-block="wood">Wood</div>
+        <div class="inventory-slot" data-block="leaves">Leaves</div>
+      </div>
+
+      <div id="chat"></div>
+      <input
+        type="text"
+        id="chatInput"
+        placeholder="Type a message..."
+        maxlength="100"
+      />
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="js/game.js"></script>
+  </body>
+</html>
