@@ -15,7 +15,13 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["minecraft", "multiplayer", "javascript", "webgl", "game"],
+  "keywords": [
+    "minecraft",
+    "multiplayer",
+    "javascript",
+    "webgl",
+    "game"
+  ],
   "author": "MrCodeBookPRO",
   "license": "MIT"
 }
