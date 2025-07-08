@@ -20,30 +20,27 @@ const gameState = {
   chunks: {},
 };
 
-// World generation
+// World generation - MUCH FASTER VERSION
 function generateChunk(chunkX, chunkZ) {
   const CHUNK_SIZE = 16;
-  const WORLD_HEIGHT = 64;
   const chunk = {};
 
+  // Generate only a small platform for faster loading
   for (let x = 0; x < CHUNK_SIZE; x++) {
     for (let z = 0; z < CHUNK_SIZE; z++) {
       const worldX = chunkX * CHUNK_SIZE + x;
       const worldZ = chunkZ * CHUNK_SIZE + z;
 
-      // Simple terrain generation with noise
-      const height = Math.floor(
-        Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 10 + 32
-      );
+      // Simple flat world at Y=30 for fast loading
+      const height = 30;
 
-      for (let y = 0; y <= height; y++) {
+      // Only generate a few layers for speed
+      for (let y = height - 2; y <= height; y++) {
         const key = `${worldX},${y},${worldZ}`;
         if (y === height) {
           chunk[key] = { type: "grass", x: worldX, y, z: worldZ };
-        } else if (y > height - 4) {
-          chunk[key] = { type: "dirt", x: worldX, y, z: worldZ };
         } else {
-          chunk[key] = { type: "stone", x: worldX, y, z: worldZ };
+          chunk[key] = { type: "dirt", x: worldX, y, z: worldZ };
         }
       }
     }
@@ -66,8 +63,8 @@ function loadChunk(chunkX, chunkZ) {
   return gameState.chunks[chunkKey];
 }
 
-// Get blocks in range
-function getBlocksInRange(centerX, centerZ, range = 2) {
+// Get blocks in range - MUCH SMALLER RANGE for fast loading
+function getBlocksInRange(centerX, centerZ, range = 1) {
   const blocks = {};
   const startChunkX = Math.floor((centerX - range * 16) / 16);
   const endChunkX = Math.floor((centerX + range * 16) / 16);
@@ -99,11 +96,11 @@ io.on("connection", (socket) => {
     username: `Player${Math.floor(Math.random() * 1000)}`,
   };
 
-  // Send initial game state
+  // Send initial game state - FAST LOADING with minimal blocks
   socket.emit("gameState", {
     playerId: playerId,
     players: gameState.players,
-    blocks: getBlocksInRange(0, 0, 3),
+    blocks: getBlocksInRange(0, 0, 1), // Only 1 chunk for super fast loading
   });
 
   // Notify other players

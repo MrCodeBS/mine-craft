@@ -212,11 +212,10 @@ class MinecraftGame {
       console.log("Loaded", Object.keys(this.blocks).length, "blocks");
       console.log("Camera position:", this.playerPosition);
 
-      // Skip automatic test blocks for now to improve performance
-      // Focus on movement first
-      console.log("Skipping test block creation for better performance");
+      // INSTANT LOADING - Skip test block generation for speed
+      console.log("Game loaded instantly - ready to play!");
 
-      // Create block meshes (but there are none yet)
+      // Create block meshes (fast with reduced range)
       this.createBlockMeshes();
       this.updatePlayerList();
 
@@ -305,8 +304,8 @@ class MinecraftGame {
     });
     this.blockMeshes = {};
 
-    // Create new block meshes (limit to nearby blocks for performance)
-    const viewRange = 20; // Reduced for testing
+    // Create new block meshes (VERY LIMITED for fast loading)
+    const viewRange = 10; // Much smaller for instant loading
     let meshCount = 0;
 
     Object.entries(this.blocks).forEach(([key, block]) => {

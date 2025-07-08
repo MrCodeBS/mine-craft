@@ -59,8 +59,16 @@ git push origin main
 - **API/Socket**: Same URL (Render handles routing)
 
 ## 💡 Pro Tips:
-1. Free tier may "sleep" after 15 minutes of inactivity
+1. Free tier may "sleep" after 15 minutes of inactivity  
 2. Paid tier ($7/month) keeps it always running
 3. You can set up custom domains later
+4. **OPTIMIZED**: Game now loads super fast with minimal world generation!
+5. **PERFORMANCE**: Reduced chunk loading for instant multiplayer connections
+
+## ⚡ Performance Optimizations:
+- **Faster world generation**: Only 3 block layers instead of 64
+- **Smaller chunks**: 1 chunk radius instead of 3 
+- **Reduced view range**: 10 blocks instead of 20
+- **Instant loading**: No more waiting for massive world generation!
 
 Ready to deploy? Just follow the steps above! 🚀
