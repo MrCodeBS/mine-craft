@@ -115,6 +115,7 @@ class MinecraftGame {
       right: false,
       up: false,
       down: false,
+      sprint: false,
     };
 
     // Camera/Player position
@@ -419,6 +420,9 @@ class MinecraftGame {
         case "ShiftLeft":
           this.controls.down = true;
           break;
+        case "ControlLeft":
+          this.controls.sprint = true;
+          break;
       }
 
       // Block selection
@@ -468,6 +472,9 @@ class MinecraftGame {
         case "ShiftLeft":
           this.controls.down = false;
           break;
+        case "ControlLeft":
+          this.controls.sprint = false;
+          break;
       }
     });
 
@@ -496,7 +503,7 @@ class MinecraftGame {
 
     document.addEventListener("mousemove", (e) => {
       if (this.isPointerLocked) {
-        const sensitivity = 0.004; // Increased mouse sensitivity
+        const sensitivity = 0.008; // Super fast mouse sensitivity
         this.euler.setFromQuaternion(this.camera.quaternion);
         this.euler.y -= e.movementX * sensitivity;
         this.euler.x -= e.movementY * sensitivity;
@@ -601,8 +608,12 @@ class MinecraftGame {
 
     if (!this.isPointerLocked || this.chatVisible) return;
 
-    // Movement with much faster speed
-    const moveSpeed = 50 * deltaTime; // Much faster movement
+    // Movement with super fast speed
+    let baseSpeed = 100; // Base super fast movement
+    if (this.controls.sprint) {
+      baseSpeed = 250; // Sprint speed - flying fast!
+    }
+    const moveSpeed = baseSpeed * deltaTime;
     const direction = new THREE.Vector3();
 
     if (this.controls.forward) direction.z -= 1;
