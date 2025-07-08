@@ -107,6 +107,13 @@ class MinecraftGame {
     this.playerMeshes = {};
     this.selectedBlock = "grass";
 
+    // PvP state
+    this.playerHealth = 100;
+    this.maxHealth = 100;
+    this.isDead = false;
+    this.lastAttackTime = 0;
+    this.combatMessages = [];
+
     // Controls
     this.controls = {
       forward: false,
@@ -116,6 +123,8 @@ class MinecraftGame {
       up: false,
       down: false,
       sprint: false,
+      attack: false,
+      heal: false,
     };
 
     // Camera/Player position
@@ -299,6 +308,54 @@ class MinecraftGame {
     this.socket.on("chatMessage", (data) => {
       this.addChatMessage(data.username, data.message);
     });
+
+    // PvP Events
+    this.socket.on("playerDamaged", (data) => {
+      if (data.playerId === this.playerId) {
+        this.playerHealth = data.newHealth;
+        this.updateHealthBar();
+        this.addCombatMessage(`You took ${data.damage} damage from ${data.attackerName}!`, "combat-damage");
+      } else if (data.attackerId === this.playerId) {
+        this.addCombatMessage(`You dealt ${data.damage} damage to ${this.players[data.playerId]?.username || 'Unknown'}!`, "combat-damage");
+      }
+    });
+
+    this.socket.on("playerDied", (data) => {
+      if (data.deadPlayerId === this.playerId) {
+        this.isDead = true;
+        this.playerHealth = 0;
+        this.updateHealthBar();
+        this.addCombatMessage(`💀 You were killed by ${data.killerName}!`, "combat-kill");
+        this.addChatMessage("System", "You died! Respawning in 3 seconds...", "#ff0000");
+      } else if (data.killerPlayerId === this.playerId) {
+        this.addCombatMessage(`💀 You killed ${data.deadPlayerName}!`, "combat-kill");
+        this.addChatMessage("System", `You killed ${data.deadPlayerName}!`, "#00ff00");
+      } else {
+        this.addCombatMessage(`💀 ${data.deadPlayerName} was killed by ${data.killerName}`, "combat-kill");
+      }
+    });
+
+    this.socket.on("playerRespawned", (data) => {
+      if (data.playerId === this.playerId) {
+        this.isDead = false;
+        this.playerHealth = data.player.health;
+        this.playerPosition.set(data.player.x, data.player.y, data.player.z);
+        this.camera.position.copy(this.playerPosition);
+        this.updateHealthBar();
+        this.addChatMessage("System", "You have respawned!", "#00ff00");
+        this.addCombatMessage("✨ You respawned!", "combat-heal");
+      }
+      this.players[data.playerId] = data.player;
+      this.updatePlayerMesh(data.player);
+    });
+
+    this.socket.on("playerHealed", (data) => {
+      if (data.playerId === this.playerId) {
+        this.playerHealth = data.newHealth;
+        this.updateHealthBar();
+        this.addCombatMessage(`❤️ Healed for ${data.amount} HP!`, "combat-heal");
+      }
+    });
   }
 
   createBlockMeshes() {
@@ -469,6 +526,14 @@ class MinecraftGame {
         case "ControlLeft":
           this.controls.sprint = true;
           break;
+        case "KeyF":
+          this.controls.attack = true;
+          e.preventDefault();
+          break;
+        case "KeyH":
+          this.controls.heal = true;
+          e.preventDefault();
+          break;
       }
 
       // Block selection
@@ -520,6 +585,12 @@ class MinecraftGame {
           break;
         case "ControlLeft":
           this.controls.sprint = false;
+          break;
+        case "KeyF":
+          this.controls.attack = false;
+          break;
+        case "KeyH":
+          this.controls.heal = false;
           break;
       }
     });

@@ -126,6 +126,84 @@
         border: 1px solid #fff;
       }
 
+      #healthBar {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 300px;
+        height: 30px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid #fff;
+        border-radius: 15px;
+        overflow: hidden;
+      }
+
+      #healthFill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #4caf50 0%, #8bc34a 50%, #cddc39 100%);
+        transition: width 0.3s ease;
+        border-radius: 12px;
+      }
+
+      #healthText {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        z-index: 1;
+      }
+
+      #pvpStatus {
+        position: absolute;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        padding: 8px 16px;
+        border-radius: 20px;
+        color: #fff;
+        font-size: 12px;
+        border: 1px solid #ff4444;
+      }
+
+      #combatLog {
+        position: absolute;
+        top: 100px;
+        right: 20px;
+        width: 250px;
+        max-height: 150px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px;
+        font-size: 12px;
+        overflow-y: auto;
+        border-radius: 5px;
+        border: 1px solid #fff;
+      }
+
+      .combat-message {
+        margin-bottom: 4px;
+        padding: 2px;
+        border-radius: 3px;
+      }
+
+      .combat-kill {
+        color: #ff4444;
+        font-weight: bold;
+      }
+
+      .combat-damage {
+        color: #ffaa00;
+      }
+
+      .combat-heal {
+        color: #44ff44;
+      }
+
       #playerList {
         position: absolute;
         top: 20px;
@@ -153,6 +231,15 @@
     <div id="ui">
       <div id="crosshair"></div>
 
+      <!-- Health Bar -->
+      <div id="healthBar">
+        <div id="healthFill"></div>
+        <div id="healthText">100 / 100 HP</div>
+      </div>
+
+      <!-- PvP Status -->
+      <div id="pvpStatus">⚔️ PvP ENABLED - Press F to attack!</div>
+
       <div id="info">
         <div><strong>🎮 Minecraft Multiplayer</strong></div>
         <div>Position: <span id="position">Loading...</span></div>
@@ -168,6 +255,8 @@
           • <strong>🌍 GRAVITY ENABLED - Jump to avoid falling!</strong>
         </div>
         <div>• Left click to destroy, Right click to place</div>
+        <div>• <strong>F to ATTACK nearby players (PvP enabled!)</strong></div>
+        <div>• <strong>H to HEAL yourself (+25 HP)</strong></div>
         <div>• Press T to chat, Numbers 1-5 to select blocks</div>
         <div>• <strong>Click canvas to start playing!</strong></div>
       </div>
@@ -175,6 +264,12 @@
       <div id="playerList">
         <h3>Players Online:</h3>
         <div id="players"></div>
+      </div>
+
+      <!-- Combat Log -->
+      <div id="combatLog">
+        <h4 style="margin-top: 0; color: #ff4444;">⚔️ Combat Log</h4>
+        <div id="combatMessages"></div>
       </div>
 
       <div id="inventory">

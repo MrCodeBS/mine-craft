@@ -94,6 +94,12 @@ io.on("connection", (socket) => {
     rotX: 0,
     rotY: 0,
     username: `Player${Math.floor(Math.random() * 1000)}`,
+    health: 100,
+    maxHealth: 100,
+    isDead: false,
+    lastDamageTime: 0,
+    kills: 0,
+    deaths: 0,
   };
 
   // Send initial game state - FAST LOADING with minimal blocks
@@ -162,6 +168,94 @@ io.on("connection", (socket) => {
         username: player.username,
         message: message,
         timestamp: Date.now(),
+      });
+    }
+  });
+
+  // Handle PvP attack
+  socket.on("playerAttack", (data) => {
+    const attacker = gameState.players[playerId];
+    if (!attacker || attacker.isDead) return;
+
+    const { targetId, damage = 20 } = data;
+    const target = gameState.players[targetId];
+    
+    if (!target || target.isDead) return;
+
+    // Check if target is within attack range (5 blocks)
+    const distance = Math.sqrt(
+      Math.pow(attacker.x - target.x, 2) +
+      Math.pow(attacker.y - target.y, 2) +
+      Math.pow(attacker.z - target.z, 2)
+    );
+
+    if (distance > 5) return; // Too far to attack
+
+    // Damage cooldown (prevent spam attacks)
+    const now = Date.now();
+    if (now - target.lastDamageTime < 1000) return; // 1 second cooldown
+
+    // Apply damage
+    target.health = Math.max(0, target.health - damage);
+    target.lastDamageTime = now;
+
+    console.log(`${attacker.username} attacked ${target.username} for ${damage} damage (${target.health}/${target.maxHealth} HP remaining)`);
+
+    // Check if player died
+    if (target.health <= 0) {
+      target.isDead = true;
+      target.deaths++;
+      attacker.kills++;
+
+      // Broadcast death event
+      io.emit("playerDied", {
+        deadPlayerId: targetId,
+        killerPlayerId: playerId,
+        deadPlayerName: target.username,
+        killerName: attacker.username,
+      });
+
+      // Respawn after 3 seconds
+      setTimeout(() => {
+        if (gameState.players[targetId]) {
+          gameState.players[targetId].health = gameState.players[targetId].maxHealth;
+          gameState.players[targetId].isDead = false;
+          gameState.players[targetId].x = Math.random() * 20 - 10; // Random spawn
+          gameState.players[targetId].y = 35;
+          gameState.players[targetId].z = Math.random() * 20 - 10;
+          
+          io.emit("playerRespawned", {
+            playerId: targetId,
+            player: gameState.players[targetId],
+          });
+        }
+      }, 3000);
+    } else {
+      // Broadcast damage event
+      io.emit("playerDamaged", {
+        playerId: targetId,
+        damage: damage,
+        newHealth: target.health,
+        attackerId: playerId,
+        attackerName: attacker.username,
+      });
+    }
+  });
+
+  // Handle heal (for testing or med kits)
+  socket.on("playerHeal", (data) => {
+    const player = gameState.players[playerId];
+    if (!player || player.isDead) return;
+
+    const { amount = 25 } = data;
+    const oldHealth = player.health;
+    player.health = Math.min(player.maxHealth, player.health + amount);
+
+    if (player.health > oldHealth) {
+      io.emit("playerHealed", {
+        playerId: playerId,
+        amount: player.health - oldHealth,
+        newHealth: player.health,
       });
     }
   });
